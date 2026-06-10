@@ -2496,12 +2496,14 @@ function openPromoDrillModal(bu) {
 
   var html = '<div class="drill-section-title">晋升/降级明细（' + periodLabel + '）</div>';
   html += '<div class="drill-data-count">共 ' + results.length + ' 人</div>';
-  html += '<table class="drill-data-table"><thead><tr><th>月份</th><th>类型</th><th>姓名</th><th>工号</th><th>调动前二级部门</th><th>调动前三级部门</th><th>调动前职位</th><th>调动前职级</th></tr></thead><tbody>';
+  html += '<table class="drill-data-table"><thead><tr><th>月份</th><th>类型</th><th>姓名</th><th>工号</th><th>晋升/降级前二级部门</th><th>晋升/降级前三级部门</th><th>晋升/降级前职位</th><th>晋升/降级前职级</th><th>晋升/降级后二级部门</th><th>晋升/降级后三级部门</th><th>晋升/降级后职位</th><th>晋升/降级后职级</th></tr></thead><tbody>';
   if (results.length === 0) {
-    html += '<tr><td colspan="8" style="text-align:center;color:#999;">暂无数据</td></tr>';
+    html += '<tr><td colspan="12" style="text-align:center;color:#999;">暂无数据</td></tr>';
   } else {
     results.forEach(function(t) {
-      html += '<tr><td>' + t.month_label + '</td><td style="color:' + (t.type === '晋升' ? '#00a854' : '#e02020') + ';font-weight:700;">' + t.type + '</td><td>' + (t.name || '-') + '</td><td>' + (t.id || '-') + '</td><td>' + (t.pre_dept2 || '-') + '</td><td>' + (t.pre_dept3 || '-') + '</td><td>' + (t.pre_pos || '-') + '</td><td>' + (t.pre_rank || '-') + '</td></tr>';
+      var preRank = t.pre_rank === '/' ? 'P岗' : (t.pre_rank || '-');
+      var postRank = t.post_rank === '/' ? 'P岗' : (t.post_rank || '-');
+      html += '<tr><td>' + t.month_label + '</td><td style="color:' + (t.type === '晋升' ? '#00a854' : '#e02020') + ';font-weight:700;">' + t.type + '</td><td>' + (t.name || '-') + '</td><td>' + (t.id || '-') + '</td><td>' + (t.pre_dept2 || '-') + '</td><td>' + (t.pre_dept3 || '-') + '</td><td>' + (t.pre_pos || '-') + '</td><td>' + preRank + '</td><td>' + (t.post_dept2 || '-') + '</td><td>' + (t.post_dept3 || '-') + '</td><td>' + (t.post_pos || '-') + '</td><td>' + postRank + '</td></tr>';
     });
   }
   html += '</tbody></table>';
