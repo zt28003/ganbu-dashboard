@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>纵腾集团干部报表（2026年5月）</title>
+<title>集团干部报表（2026年5月）</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -244,7 +244,7 @@
 <!-- 登录遮罩 -->
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
-    <h2>🔐 纵腾集团干部报表</h2>
+    <h2>🔐 集团干部报表</h2>
     <div class="login-subtitle">请输入账号密码以查看数据</div>
     <label>账号</label>
     <input type="text" id="loginUser" placeholder="请输入账号" autocomplete="off">
@@ -256,7 +256,7 @@
 </div>
 <div class="page-wrapper" id="pageWrapper" style="display:none">
   <div id="header">
-    <h1 id="header-title">📊 纵腾集团干部报表</h1>
+    <h1 id="header-title">📊 集团干部报表</h1>
     <div id="header-subtitle">数据更新时间：2026/6/10；累计数据时间范围：2026/1/1—2026/5/31</div>
     <div class="user-bar" id="userBar" style="display:none">
       <span>当前用户：</span><span class="user-bu" id="userLabel"></span>
@@ -2237,7 +2237,7 @@ function downloadPageAsImage() {
       window.scrollTo(0, origScroll);
       // 触发下载
       const link = document.createElement('a');
-      link.download = '纵腾集团干部报表_20260606.png';
+      link.download = '集团干部报表_20260606.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
     }).catch(err => {
