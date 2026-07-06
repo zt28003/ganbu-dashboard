@@ -279,18 +279,18 @@
 <!-- 全局错误展示：任何 JS 异常都会显示在这里，绝不可能看不见 -->
 <div id="globalErrorPanel" style="position:fixed;left:0;right:0;bottom:0;background:#b71c1c;color:#fff;padding:12px 16px;font-family:Consolas,monospace;font-size:13px;z-index:99999;display:none;white-space:pre-wrap;max-height:50vh;overflow:auto;box-shadow:0 -2px 8px rgba(0,0,0,0.3)"></div>
 <script>
-// ══════ 密码哈希（PBKDF2-SHA256，100k iterations）══════
-// 输入：明文密码
-// 算法：HMAC-SHA256 派生 key，输入材料 = "zt_gb_2025_salt:"+password（UTF-8），salt = 空（空 bytes）
-// 单次派生耗时：约 350-450 ms，让单字字典攻击从秒级 → 数月级
-const PW_SALT_PREFIX = 'zt_gb_2025_salt:';
-const PW_ITERATIONS = 100000;
+// ══════ 密码哈希（PBKDF2-SHA256，Plan A+：600k iter + 每用户随机 salt）══════
+// 输入：salt + ":" + 密码（UTF-8 bytes）
+// 算法：HMAC-SHA256 派生 key，PBKDF2 内部 salt = 空 bytes（公开的“安全 nonce”）
+// 每用户独立 salt（16 字节随机，32 字符 hex）→ 攻击者无法跨用户共用彩虹表
+// 600k iter 较 100k 让 GPU 攻击慢 6×（OWASP 2023 推荐 PBKDF2-SHA256 底线）
+const PW_ITERATIONS = 600000;
 const PW_DERIVE_BITS = 256; // 32 字节
-async function pbkdf2Password(pw) {
+async function pbkdf2Password(salt, pw) {
   const enc = new TextEncoder();
-  const pwBytes = enc.encode(PW_SALT_PREFIX + pw);
+  const material = enc.encode(salt + ':' + pw);
   const baseKey = await crypto.subtle.importKey(
-    'raw', pwBytes, {name: 'PBKDF2'}, false, ['deriveBits']
+    'raw', material, {name: 'PBKDF2'}, false, ['deriveBits']
   );
   const bits = await crypto.subtle.deriveBits(
     {name: 'PBKDF2', salt: new Uint8Array(0), iterations: PW_ITERATIONS, hash: 'SHA-256'},
@@ -305,9 +305,34 @@ async function pbkdf2Password(pw) {
   return hex;
 }
 
-// 兼容老 hash（SHA-256） — 给旧缓存/老 snapshot 留一段过渡期对照（不命中则走 PBKDF2 字典）
-// 旧哈希可逐步退役：先把 dict 里的 SHA-256 都换成 PBKDF2，2026-08 起整段代码可移除
-const LEGACY_SHA256_HASHES = new Set();
+// ══════ 登录 lockout（防在线攻击）══════
+// 5 次失败 → 5 分钟锁定（localStorage 计数）
+// 一次锁定后只能等 timer 或清 localStorage；不持久防离线（离线仍可暴力）
+// 主要价值：堵死"网址公开放着 + 攻击者挨个试"的低成本路径
+const LOCKOUT_THRESHOLD = 5;
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000;
+function _lockRemainingSec() {
+  try {
+    const lockedUntil = parseInt(localStorage.getItem('gb_lock_until') || '0', 10);
+    const now = Date.now();
+    if (lockedUntil > now) return Math.ceil((lockedUntil - now) / 1000);
+    if (lockedUntil) { localStorage.removeItem('gb_lock_until'); localStorage.removeItem('gb_login_fails'); }
+    return 0;
+  } catch (e) { return 0; }
+}
+function _recordLoginFail() {
+  try {
+    const fails = parseInt(localStorage.getItem('gb_login_fails') || '0', 10) + 1;
+    localStorage.setItem('gb_login_fails', String(fails));
+    if (fails >= LOCKOUT_THRESHOLD) {
+      localStorage.setItem('gb_lock_until', String(Date.now() + LOCKOUT_DURATION_MS));
+    }
+    return fails;
+  } catch (e) { return 0; }
+}
+function _clearLoginFails() {
+  try { localStorage.removeItem('gb_login_fails'); localStorage.removeItem('gb_lock_until'); } catch (e) {}
+}
 
 // 全局错误捕获器 — 把任何 JS 异常砸到屏幕上
 (function() {
@@ -326,18 +351,19 @@ const LEGACY_SHA256_HASHES = new Set();
   });
 })();
 
-// ══════ 账号库（PBKDF2 hashes）══════
-// 格式：{username: {hash, access}}，hash = pbkdf2Password(password)，access = 'all' 或 BU 名
-// 修改密码：另存新 hash 即可，username 字典序保持稳定
+// ══════ 账号库（每账号独立 salt + PBKDF2 600k hash）══════
+// salt 公开 32 字符 hex，但每用户独立 → 攻击者需为每个账号重算候选表
+// hash 输入材料 = salt + ':' + 密码 派生 600k 次 HMAC-SHA256
+// 修改密码：换 salt + 重算 hash；保持 username 字典序方便 review
 const ACCOUNTS = {
-  'admin': { hash: '8d1c7fa494f9666287d89c982dabf53c3dfccb35433fdcaf631298f255e3e710', access: 'all' },
-  'LBU':   { hash: 'f6b4ec17291b02a6e0143bc23cdf32c0fc933946828c89601177a5b2c672fa1e', access: 'LBU' },
-  'FBU':   { hash: '3c9a399594d1886155bffe580a49536551216275340cd72c767f8197acb0c1ad', access: 'FBU' },
-  'ABU':   { hash: '08bc23ad29657e1b3cf5c2142568da0fb114b11e5e6e7d02090cf291627482fd', access: 'ABU' },
-  'PBU':   { hash: 'cad94bc38bbd289baf4dff4b45e5c313c1d742cbc40191d96717c943cb7d7959', access: 'PBU' },
-  'GEU':   { hash: '7f8a282e54447e328155c5bef4787d210108de0b3d9ca265fb59213ad3757820', access: 'GEU' },
-  'GUS':   { hash: 'd0e78a7ee29c835d09f72cf24e78a0e13a9d6dbf8a338b25706b069478850447', access: 'GUS' },
-  'HQU':   { hash: '8e33ea09315a3c3119f26376b38999a3f2fd482138aee6460d0646d446725b3c', access: 'HQU' },
+  'admin': { salt: '8200c0e08c49907d94e169b786726187', hash: 'f0da4e737db930c912713205c77a9997038ab935658ba07c14cf3addeaa2a242', access: 'all' },
+  'LBU':   { salt: '3cb9aa110a26ef1dec4ffdb909623951', hash: 'debb4207162c0b4c345b407847607185ded8459d59938bfa3d8ba8e549c8dfc6', access: 'LBU' },
+  'FBU':   { salt: '12e514aa91219215e52af4d712df5393', hash: '70627b7f58c27d8181167630bafd79faa6b3efbb92cccdee5b816a38f4dc2fcd', access: 'FBU' },
+  'ABU':   { salt: '2a07b938611bd51376252ae8f0dead39', hash: '10bfc7fe1c30d2c6a0b178fbd43099f94916c1afb29a0afd1c6059a7a5a67202', access: 'ABU' },
+  'PBU':   { salt: '6e73ab4b15e67eb4de75b57f8a3e146a', hash: 'e05d76e02eef102f24433d10982a68e4f317d585d11c56f0537e259d6a51f346', access: 'PBU' },
+  'GEU':   { salt: '36cf21b51505c90b77d54a4d15100ba0', hash: 'e961f9c06f75310a5667ef31faf510ffad0018949a722104a6165ce07c0aa9e2', access: 'GEU' },
+  'GUS':   { salt: '0f86b6d14d2ba9ad0d5b93edfeb9e257', hash: 'c055b6e2d18ddeb81879d41e3358e4103cd1666334a569cb44ce4392f2a5e3fc', access: 'GUS' },
+  'HQU':   { salt: '9eaf8e623e0667db1d37283f1cef2ec7', hash: 'f4309bda211e3e1ec945c92e3825f5642beba29013c5541fd653e0435410b349', access: 'HQU' },
 };
 let ACCESS_BU = null; // null=未登录, 'all'=全部, 'LBU'=只显示LBU
 let _loginBusy = false;
@@ -362,12 +388,38 @@ async function tryDoLogin() {
       return;
     }
 
-    // 派生 PBKDF2 hash，浏览器侧约 350-450 ms（vs. 旧 SHA-256 < 1 ms）
-    var h = await pbkdf2Password(pass);
+    // 早期 lockout 检查 — 锁定中直接拒绝，不再跑 PBKDF2（节省 CPU）
+    var lockSec = _lockRemainingSec();
+    if (lockSec > 0) {
+      if (errEl) { errEl.textContent = '登录已锁定，请 ' + lockSec + ' 秒后重试'; errEl.style.display = 'block'; }
+      if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
+      _loginBusy = false;
+      return;
+    }
 
+    // 派生 PBKDF2 hash（per-user salt + 600k iter，约 600-1200 ms）
     var acc = ACCOUNTS[user];
-    if (!acc || acc.hash !== h) {
-      if (errEl) { errEl.textContent = '账号或密码错误，请重试'; errEl.style.display = 'block'; }
+    if (!acc) {
+      // 用户名不存在 — 仍跑一次假派生，防止通过响应时间推断用户名是否存在
+      await pbkdf2Password('00000000000000000000000000000000', 'placeholder');
+      _recordLoginFail();
+      var rem1 = LOCKOUT_THRESHOLD - (parseInt(localStorage.getItem('gb_login_fails') || '0', 10));
+      if (errEl) { errEl.textContent = '账号或密码错误，请重试（还可试 ' + rem1 + ' 次）'; errEl.style.display = 'block'; }
+      if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
+      _loginBusy = false;
+      return;
+    }
+    var h = await pbkdf2Password(acc.salt, pass);
+
+    if (acc.hash !== h) {
+      _recordLoginFail();
+      var rem2 = LOCKOUT_THRESHOLD - (parseInt(localStorage.getItem('gb_login_fails') || '0', 10));
+      if (rem2 > 0) {
+        if (errEl) { errEl.textContent = '账号或密码错误，请重试（还可试 ' + rem2 + ' 次）'; errEl.style.display = 'block'; }
+      } else {
+        var sec = _lockRemainingSec();
+        if (errEl) { errEl.textContent = '连续失败次数过多，登录已锁定 ' + Math.ceil(LOCKOUT_DURATION_MS / 60000) + ' 分钟（剩 ' + sec + ' 秒）'; errEl.style.display = 'block'; }
+      }
       if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
       _loginBusy = false;
       return;
@@ -375,6 +427,7 @@ async function tryDoLogin() {
 
     // 登录成功
     ACCESS_BU = acc.access;
+    _clearLoginFails();
     try {
       localStorage.setItem('gb_login_user', user);
       localStorage.setItem('gb_login_access', acc.access);
