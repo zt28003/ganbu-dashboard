@@ -10,8 +10,8 @@
 <meta property="og:site_name" content="集团干部报表">
 <meta property="og:url" content="https://zt28003.github.io/ganbu-dashboard/">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="集团干部报表（2026年6月）">
-<meta name="twitter:description" content="集团2026年6月干部报表：1-6月在编、晋升、调动、离职数据汇总">
+<meta name="twitter:title" content="集团干部报表（2026年7月）">
+<meta name="twitter:description" content="集团2026年7月干部报表：1-7月在编、晋升、调动、离职数据汇总">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -1602,7 +1602,7 @@ function buildLeaveAggData() {
   const byUid = new Map();
   (DATA.detail.employees || []).forEach(emp => {
     const bu = emp.bu, lv = emp.level, lm = emp.leave_month;
-    if (!bu || !lv || !lm || lm < 1 || lm > 6) return;
+    if (!bu || !lv || !lm || lm < 1 || lm > 12) return;
     const uid = emp.id || (emp.name + '_' + bu + '_' + lv + '_' + lm);
     if (!byUid.has(uid)) byUid.set(uid, []);
     byUid.get(uid).push(emp);
@@ -1953,7 +1953,7 @@ function toggleDetailType(type, btn) {
     if (preRow) preRow.style.display = 'none';
     if (postRow) postRow.style.display = 'none';
     if (cumBtn) { cumBtn.style.display = 'none'; cumBtn.classList.remove('active'); }
-    // 在职默认选中6月
+    // 在职默认选中LATEST_M（最新月）
     detailActiveMonths.clear();
     document.querySelectorAll('.detail-month-btn').forEach(b => b.classList.remove('active'));
     detailActiveMonths.add(LATEST_M);
@@ -2196,8 +2196,8 @@ function toggleDetailPostBU(bu, btn) {
 }
 
 function getDefaultMonths() {
-  // 在职默认选中6月
-  if (detailActiveType === '在职') return ['6月'];
+  // 在职默认选中LATEST_M（最新月）
+  if (detailActiveType === '在职') return [LATEST_M];
   // 离职/入职：累计按钮选中时 → 全部月份
   if (detailActiveType === '离职' || detailActiveType === '入职') {
     const cumBtn = document.getElementById('detailCumBtn');
@@ -2723,13 +2723,13 @@ function openNetGrowthModal(bu, level) {
     html += '<p style="font-size:11px;color:#888;line-height:1.6;">'
       + '① 晋升/降级仅统计与P岗之间的流动：P岗→BU算晋升（+）、BU→P岗算降级（-）、BU→P岗的晋升算特殊晋升调出（-）。BU内部或BU间的晋升/降级不计入（已归入跨BU调动）。<br>'
       + '② 跨BU调入/调出仅统计type="跨BU调动"的记录，与晋升/降级互斥不重复。<br>'
-      + '③ 数据取自页面下方「明细数据」模块的累计（1-6月）记录。</p>';
+      + '③ 数据取自页面下方「明细数据」模块的累计（' + (DRILL_MONTHS.length > 0 ? '1-' + DRILL_MONTHS[DRILL_MONTHS.length-1].replace('月','') + '月' : '全部') + '）记录。</p>';
   } else {
     html += '<p style="font-size:11px;color:#888;line-height:1.6;">'
       + '① 晋升/降级口径与小计模式一致：仅统计P岗与当前BU+层级之间的流动（BU↔P），保证三层之和 = BU 整体净增。BU内部或BU间的级别变动不计入（已归入跨BU调动），由流动公式体现。<br>'
       + '② 特殊晋升调出：从当前BU+层级晋升到P岗，视为人员流失（-）。<br>'
       + '③ 跨BU调入/调出仅统计type="跨BU调动"的记录，与晋升/降级互斥不重复。<br>'
-      + '④ 数据取自页面下方「明细数据」模块的累计（1-6月）记录。</p>';
+      + '④ 数据取自页面下方「明细数据」模块的累计（' + (DRILL_MONTHS.length > 0 ? '1-' + DRILL_MONTHS[DRILL_MONTHS.length-1].replace('月','') + '月' : '全部') + '）记录。</p>';
   }
 
   showDrillModal(title, html, 'net', bu, level);
