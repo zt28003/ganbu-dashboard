@@ -2772,11 +2772,16 @@ function openFillRateModal(bu, level) {
   });
   html += '</tbody></table>';
 
-  // 原来的 「满编明细」统计 + 空编岗位明细 也保留
-  html += '<div class="drill-section-title" style="margin-top:16px;">汇总</div>';
-  html += '<table class="drill-data-table"><thead><tr><th>维度</th><th>前台</th><th>中后台</th><th>合计</th></tr></thead><tbody>';
-  html += '<tr><td>编制总数</td><td class="num-col">' + fmtNumD(fgaTotal) + '</td><td class="num-col">' + fmtNumD(fgaBack) + '</td><td class="num-col">' + fmtNumD(d.total) + '</td></tr>';
-  html += '<tr><td>在编人数</td><td class="num-col">' + fmtNumD(fgaFront) + '</td><td class="num-col">' + fmtNumD(fgaBackF) + '</td><td class="num-col">' + fmtNumD(d.filled) + '</td></tr>';
+  // 保留原 3 行（编制总数/在编人数/空编人数，各只 1 列合计）
+  html += '<div class="drill-section-title" style="margin-top:16px;">满编明细</div>';
+  html += '<table class="drill-data-table"><thead><tr><th>指标</th><th class="num-col">数量</th></tr></thead><tbody>';
+  html += '<tr><td>编制总数</td><td class="num-col">' + fmtNumD(d.total) + '</td></tr>';
+  html += '<tr><td>在编人数</td><td class="num-col">' + fmtNumD(d.filled) + '</td></tr>';
+  html += '<tr><td>空编人数</td><td class="num-col" style="color:#e02020;">' + fmtNumD(d.vacant) + '</td></tr>';
+  html += '</tbody></table>';
+  // 在原 3 行下面, 给空编数做前台/中后台区分
+  html += '<div class="drill-section-title" style="margin-top:16px;">空编人数 — 前台/中后台区分</div>';
+  html += '<table class="drill-data-table"><thead><tr><th>维度</th><th class="num-col">前台</th><th class="num-col">中后台</th><th class="num-col">合计</th></tr></thead><tbody>';
   html += '<tr><td>空编人数</td><td class="num-col" style="color:#e02020;">' + fmtNumD(fgaVacFront) + '</td><td class="num-col" style="color:#e02020;">' + fmtNumD(fgaVacBack) + '</td><td class="num-col" style="color:#e02020;">' + fmtNumD(d.vacant) + '</td></tr>';
   html += '</tbody></table>';
 
