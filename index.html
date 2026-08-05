@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>集团干部报表</title>
-<meta property="og:title" content="集团干部报表">
-<meta property="og:description" content="数据更新时间：2026/8/5；累计数据时间范围：2026/1/1—2026/8/5">
+<title>集团干部报表（2026年7月）</title>
+<meta property="og:title" content="集团干部报表（2026年7月）">
+<meta property="og:description" content="数据更新时间：2026/8/5；累计数据时间范围：2026/1/1—2026/07/31">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="集团干部报表">
 <meta property="og:url" content="https://zt28003.github.io/ganbu-dashboard/">
@@ -467,7 +467,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="page-wrapper" id="pageWrapper" style="display:none">
   <div id="header">
     <h1 id="header-title">📊 集团干部报表</h1>
-    <div id="header-subtitle">数据更新时间：2026/8/5；累计数据时间范围：2026/1/1—2026/8/5</div>
+    <div id="header-subtitle">数据更新时间：2026/8/5；累计数据时间范围：2026/1/1—2026/07/31</div>
     <div class="user-bar" id="userBar" style="display:none">
       <span>当前用户：</span><span class="user-bu" id="userLabel"></span>
       <span class="logout-link" onclick="doLogout()">退出登录</span>
@@ -2608,6 +2608,12 @@ const DRILL_MONTHS = (function() {
     return na - nb;
   });
 })();
+// 最新月份: 弹窗 join/resign 计数只统计最新月份的快照(防止一个人 hire 算多次)
+const LATEST_M = (function() {
+  if (typeof DATA === 'undefined' || !DATA.detail || !DATA.detail.employees) return '6月';
+  const arr = DRILL_MONTHS;
+  return arr.length > 0 ? arr[arr.length - 1] : '6月';
+})();
 
 // P岗判定辅助（归一化后为"P岗"即视作P岗）
 function isPLevel(lv) { return normLevel(lv) === 'P岗'; }
@@ -2619,7 +2625,7 @@ function getNetGrowthFromDetail(bu, level) {
   const levels = (level === '小计') ? ['高层','中层','基层'] : [level];
   const isXiaoji = (level === '小计');
 
-  // 累计入职（仅统计 0630 快照中 hire_date 在 2026 且在 DRILL_MONTHS 内的人）
+  // 累计入职（仅统计最新快照中 hire_date 在 2026 且在 DRILL_MONTHS 内的人）
   // 排除通过晋升/跨BU调动"到达"该 BU+层级 的人
   var transferArrived = new Set();
   DATA.detail.transfers.forEach(t => {
@@ -2627,14 +2633,14 @@ function getNetGrowthFromDetail(bu, level) {
   });
   var joinIds = {};
   DATA.detail.employees.forEach(e => {
-    if (e.m !== '6月') return;  // 仅看最新快照 0630
+    if (e.m !== LATEST_M) return;  // 仅看最新快照
     if (bus.includes(e.bu) && levels.includes(e.level) && e.hire_month > 0 && DRILL_MONTHS.includes(e.hire_month + '月')) {
       if (transferArrived.has(e.id + '|' + e.bu + '|' + e.level)) return;
       if (!joinIds[e.id]) { joinIds[e.id] = true; join++; }
     }
   });
 
-  // 手动补正：DATA.special_hires 中的特殊 hire（不在 0630 快照里）
+  // 手动补正：DATA.special_hires 中的特殊 hire（不在最新快照里）
   if (DATA.special_hires) {
     Object.keys(DATA.special_hires).forEach(function(bu_key) {
       if (bus.includes(bu_key)) {
@@ -2647,10 +2653,10 @@ function getNetGrowthFromDetail(bu, level) {
     });
   }
 
-  // 累计离职（同样仅看 0630 快照，按id去重）
+  // 累计离职（同样仅看最新快照，按id去重）
   var resignIds = {};
   DATA.detail.employees.forEach(e => {
-    if (e.m !== '6月') return;
+    if (e.m !== LATEST_M) return;
     if (bus.includes(e.bu) && levels.includes(e.level) && e.leave && e.leave_month > 0 && DRILL_MONTHS.includes(e.leave_month + '月')) {
       if (!resignIds[e.id]) { resignIds[e.id] = true; resign++; }
     }
