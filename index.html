@@ -2811,7 +2811,7 @@ function openJoinDrillModal(bu, level) {
     transferArrived.add(t.id + '|' + t.post_bu + '|' + t.post_level);
   });
   var results = [];
-  var seen = new Set();
+  var seen = new Map();  // dedup: 同 id 保留最新 m 的 record (0731 那条有 fga 字段)
   DATA.detail.employees.forEach(function(e) {
     if (e.hire_month <= 0) return;
     if (!months.includes(e.hire_month + '月')) return;
@@ -2820,10 +2820,12 @@ function openJoinDrillModal(bu, level) {
     // 排除通过晋升/调动到达当前BU+层级的人员
     if (transferArrived.has(e.id + '|' + e.bu + '|' + e.level)) return;
     var key = e.id;
-    if (seen.has(key)) return;
-    seen.add(key);
-    results.push(e);
+    var cur = seen.get(key);
+    if (!cur || DRILL_MONTHS.indexOf(e.m) > DRILL_MONTHS.indexOf(cur.m)) {
+      seen.set(key, e);
+    }
   });
+  results = Array.from(seen.values());
 
   // 前台/中后台统计
   var joinFront = 0, joinBack = 0;
