@@ -2281,12 +2281,12 @@ function renderDetailTable() {
     rows = DATA.detail.transfers.filter(t =>
       t.pre_bu !== t.post_bu && months.includes(t.month_label)
     );
-    // 调动前/后BU筛选：前 BU 或 后 BU 任一命中即可（OR 逻辑；空集 = 不过滤）
-    if (detailActivePreBUs.size > 0 || detailActivePostBUs.size > 0) {
-      rows = rows.filter(t =>
-        (detailActivePreBUs.size === 0 || detailActivePreBUs.has(t.pre_bu)) ||
-        (detailActivePostBUs.size === 0 || detailActivePostBUs.has(t.post_bu))
-      );
+    // 调动前/后BU筛选：前 BU 和 后 BU 是 AND 关系（两边都选 = 两边都必命中; 只选一边 = 只过滤那一边）
+    if (detailActivePreBUs.size > 0) {
+      rows = rows.filter(t => detailActivePreBUs.has(t.pre_bu));
+    }
+    if (detailActivePostBUs.size > 0) {
+      rows = rows.filter(t => detailActivePostBUs.has(t.post_bu));
     }
     // 锁定账号（非 admin）：仅展示 pre_bu=ACCESS_BU 或 post_bu=ACCESS_BU 的记录
     if (isLockedView()) {
